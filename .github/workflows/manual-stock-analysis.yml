@@ -56,6 +56,15 @@ jobs:
           EMAIL_RECEIVERS: ${{ vars.EMAIL_RECEIVERS || '' }}
           EMAIL_SENDER_NAME: '科技股票智能分析助手'
           REPORT_TYPE: full
+          LOG_LEVEL: WARNING
+          DEBUG: 'false'
+          LITELLM_LOG_LEVEL: WARNING
+          TICKPLUS_API_KEY: ${{ secrets.TICKPLUS_API_KEY }}
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+          TICKFLOW_API_KEY: ${{ secrets.TICKFLOW_API_KEY }}
+          BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
+          SERPAPI_API_KEYS: ${{ secrets.SERPAPI_API_KEYS }}
+          TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
           SEARXNG_PUBLIC_INSTANCES_ENABLED: 'false'
         run: |
           FORCE=''
@@ -68,12 +77,3 @@ jobs:
           else
             python main.py $FORCE
           fi
-      - name: 上传报告
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: stock-analysis-${{ github.run_number }}
-          path: |
-            reports/
-            logs/
-          retention-days: 30
