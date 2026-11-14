@@ -56,7 +56,7 @@ jobs:
           EMAIL_RECEIVERS: ${{ vars.EMAIL_RECEIVERS || '' }}
           EMAIL_SENDER_NAME: '科技股票智能分析助手'
           REPORT_TYPE: full
-          LOG_LEVEL: WARNING
+          LOG_LEVEL: INFO
           DEBUG: 'false'
           LITELLM_LOG_LEVEL: WARNING
           TICKPLUS_API_KEY: ${{ secrets.TICKPLUS_API_KEY }}
@@ -73,10 +73,26 @@ jobs:
           FORCE=''
           if [ "${{ inputs.force_run || 'true' }}" = "true" ]; then FORCE='--force-run'; fi
           MODE="${{ inputs.mode || 'full' }}"
+          set +e
           if [ "$MODE" = "market-only" ]; then
-            python main.py --market-review $FORCE
+            python main.py --market-review $FORCE > run-output.log 2>&1
           elif [ "$MODE" = "stocks-only" ]; then
-            python main.py --no-market-review $FORCE
+            python main.py --no-market-review $FORCE > run-output.log 2>&1
           else
-            python main.py $FORCE
+            python main.py $FORCE > run-output.log 2>&1
           fi
+          code=$?
+          set -e
+          python - "$code" <<'PYDIAG'
+          import pathlib, sys
+          s = pathlib.Path('run-output.log').read_text(errors='replace')
+          code = int(sys.argv[1])
+          ai_error = any(x in s for x in ('All LLM models failed', 'invalid_api_key', '分析未成功:'))
+          mail_ok = ('邮件发送成功' in s or '邮件（内联图片）发送成功' in s)
+          mail_error = ('邮件发送失败' in s or '发送邮件失败' in s or '邮件（内联图片）发送失败' in s)
+          report_ok = ('reports' in s or '报告保存' in s)
+          print(f'诊断: 程序退出码={code}; AI错误={ai_error}; 邮件发送成功={mail_ok}; 邮件错误={mail_error}; 报告线索={report_ok}')
+          if code or ai_error or mail_error or not mail_ok:
+              sys.exit('诊断未通过：请检查模型配置、通知配置或报告是否生成；不输出原始日志以保护密钥。')
+          PYDIAG
+          rm -f run-output.log
