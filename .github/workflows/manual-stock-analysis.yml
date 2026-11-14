@@ -47,7 +47,7 @@ jobs:
       - name: 运行分析
         env:
           # 手动输入 > 仓库变量 STOCK_LIST > 默认观察池
-          STOCK_LIST: ${{ inputs.stocks || vars.STOCK_LIST || 'sh000688,sh000001,sz399001,sz399006' }}
+          STOCK_LIST: ${{ inputs.stocks || vars.STOCK_LIST || '588940,sh000688,sh000001,sz399001,sz399006' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-6.1-sol' }}
