@@ -1,12 +1,14 @@
-name: 手动科技股票分析
+name: 科技股票智能分析
 
 on:
+  schedule:
+    - cron: '0 10 * * 1-5' # 北京时间工作日18:00
   workflow_dispatch:
     inputs:
       stocks:
-        description: '股票/指数代码，英文逗号分隔，例如 688981,sh000688'
-        required: true
-        default: 'sh000688'
+        description: '股票/指数代码，英文逗号分隔；留空使用默认科技观察池'
+        required: false
+        default: ''
         type: string
       mode:
         description: '分析模式'
@@ -44,19 +46,23 @@ jobs:
         run: mkdir -p data logs reports
       - name: 运行分析
         env:
-          STOCK_LIST: ${{ inputs.stocks }}
+          # 手动输入 > 仓库变量 STOCK_LIST > 默认观察池
+          STOCK_LIST: ${{ inputs.stocks || vars.STOCK_LIST || 'sh000688,sh000001,sz399001,sz399006' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-6.1-sol' }}
           REPORT_TYPE: full
           SEARXNG_PUBLIC_INSTANCES_ENABLED: 'false'
         run: |
-          if [ "${{ inputs.mode }}" = "market-only" ]; then
-            python main.py --market-review ${{ inputs.force_run && '--force-run' || '' }}
-          elif [ "${{ inputs.mode }}" = "stocks-only" ]; then
-            python main.py --no-market-review ${{ inputs.force_run && '--force-run' || '' }}
+          FORCE=''
+          if [ "${{ inputs.force_run || 'true' }}" = "true" ]; then FORCE='--force-run'; fi
+          MODE="${{ inputs.mode || 'full' }}"
+          if [ "$MODE" = "market-only" ]; then
+            python main.py --market-review $FORCE
+          elif [ "$MODE" = "stocks-only" ]; then
+            python main.py --no-market-review $FORCE
           else
-            python main.py ${{ inputs.force_run && '--force-run' || '' }}
+            python main.py $FORCE
           fi
       - name: 上传报告
         if: always()
