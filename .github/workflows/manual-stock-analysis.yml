@@ -70,6 +70,10 @@ jobs:
           NEWSNOW_BASE_URL: 'https://newsnow.busiyi.world'
           NEWS_INTEL_FETCH_TIMEOUT_SEC: '8'
         run: |
+          # Minis provider automatically appends /v1; LiteLLM requires the complete API root.
+          if [ "${OPENAI_BASE_URL%/}" = 'https://agent.infiscale-tech.com' ]; then
+            export OPENAI_BASE_URL='https://agent.infiscale-tech.com/v1'
+          fi
           FORCE=''
           if [ "${{ inputs.force_run || 'true' }}" = "true" ]; then FORCE='--force-run'; fi
           MODE="${{ inputs.mode || 'full' }}"
@@ -91,7 +95,8 @@ jobs:
           mail_ok = ('邮件发送成功' in s or '邮件（内联图片）发送成功' in s)
           mail_error = ('邮件发送失败' in s or '发送邮件失败' in s or '邮件（内联图片）发送失败' in s)
           report_ok = ('reports' in s or '报告保存' in s)
-          print(f'诊断: 程序退出码={code}; AI错误={ai_error}; 邮件发送成功={mail_ok}; 邮件错误={mail_error}; 报告线索={report_ok}')
+          kind = ('鉴权401' if ('401' in s or 'AuthenticationError' in s or 'invalid_api_key' in s) else '模型/接口404' if ('404' in s or 'NotFoundError' in s) else '限流429' if ('429' in s or 'RateLimitError' in s) else '其他') if ai_error else '无'
+          print(f'诊断: 程序退出码={code}; AI错误={ai_error}; AI错误类型={kind}; 邮件发送成功={mail_ok}; 邮件错误={mail_error}; 报告线索={report_ok}')
           if code or ai_error or mail_error or not mail_ok:
               sys.exit('诊断未通过：请检查模型配置、通知配置或报告是否生成；不输出原始日志以保护密钥。')
           PYDIAG
