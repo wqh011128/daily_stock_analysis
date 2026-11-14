@@ -66,6 +66,9 @@ jobs:
           SERPAPI_API_KEYS: ${{ secrets.SERPAPI_API_KEYS }}
           TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
           SEARXNG_PUBLIC_INSTANCES_ENABLED: 'false'
+          NEWS_INTEL_AUTO_FETCH_ENABLED: 'true'
+          NEWSNOW_BASE_URL: 'https://newsnow.busiyi.world'
+          NEWS_INTEL_FETCH_TIMEOUT_SEC: '8'
         run: |
           FORCE=''
           if [ "${{ inputs.force_run || 'true' }}" = "true" ]; then FORCE='--force-run'; fi
