@@ -47,7 +47,7 @@ jobs:
       - name: 运行分析
         env:
           # 手动输入 > 仓库变量 STOCK_LIST > 默认观察池
-          STOCK_LIST: ${{ inputs.stocks || vars.STOCK_LIST || '588940,sh000688,sh000001,sz399001,sz399006' }}
+          STOCK_LIST: ${{ inputs.stocks || vars.STOCK_LIST || '588940,159509,588760,159213,588710,159590' }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || vars.OPENAI_BASE_URL }}
           OPENAI_MODEL: ${{ secrets.OPENAI_MODEL || vars.OPENAI_MODEL || 'gpt-6.1-sol' }}
@@ -75,7 +75,7 @@ jobs:
             export OPENAI_BASE_URL='https://agent.infiscale-tech.com/v1'
           fi
           FORCE=''
-          if [ "${{ inputs.force_run || 'true' }}" = "true" ]; then FORCE='--force-run'; fi
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ] && [ "${{ inputs.force_run }}" = 'true' ]; then FORCE='--force-run'; fi
           MODE="${{ inputs.mode || 'full' }}"
           set +e
           if [ "$MODE" = "market-only" ]; then
