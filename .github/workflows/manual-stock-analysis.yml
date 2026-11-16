@@ -2,6 +2,7 @@ name: 科技股票智能分析
 
 on:
   schedule:
+    - cron: '30 3 * * 1-5' # 北京时间工作日11:30
     - cron: '0 10 * * 1-5' # 北京时间工作日18:00
   workflow_dispatch:
     inputs:
