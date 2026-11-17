@@ -1,9 +1,6 @@
 name: 科技股票智能分析
 
 on:
-  schedule:
-    - cron: '30 3 * * 1-5' # 北京时间工作日11:30
-    - cron: '0 7 * * 1-5' # 北京时间工作日15:00（收盘，GitHub可能延迟或丢弃整点任务）
   workflow_dispatch:
     inputs:
       stocks:
