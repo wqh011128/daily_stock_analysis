@@ -1,0 +1,83 @@
+name: 科技股票定时分析
+
+on:
+  schedule:
+    - cron: '30 3 * * 1-5' # 北京时间工作日11:30
+    - cron: '0 7 * * 1-5' # 北京时间工作日15:00（收盘，GitHub可能延迟或丢弃整点任务）
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: 安装依赖
+        run: pip install -r requirements.txt
+      - name: 创建目录
+        run: mkdir -p data logs reports
+      - name: 运行分析
+        env:
+          # 手动输入 > 仓库变量 STOCK_LIST > 默认观察池
+          STOCK_LIST: ${{ inputs.stocks || vars.STOCK_LIST || '588940,159509,588760,159213,588710,159590' }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL || vars.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL || vars.OPENAI_MODEL || 'gpt-6.1-sol' }}
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_RECEIVERS: ${{ vars.EMAIL_RECEIVERS || '' }}
+          EMAIL_SENDER_NAME: '科技股票智能分析助手'
+          REPORT_TYPE: full
+          LOG_LEVEL: INFO
+          DEBUG: 'false'
+          LITELLM_LOG_LEVEL: WARNING
+          TICKPLUS_API_KEY: ${{ secrets.TICKPLUS_API_KEY }}
+          TUSHARE_TOKEN: ${{ secrets.TUSHARE_TOKEN }}
+          TICKFLOW_API_KEY: ${{ secrets.TICKFLOW_API_KEY }}
+          BOCHA_API_KEYS: ${{ secrets.BOCHA_API_KEYS }}
+          SERPAPI_API_KEYS: ${{ secrets.SERPAPI_API_KEYS }}
+          TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
+          SEARXNG_PUBLIC_INSTANCES_ENABLED: 'false'
+          NEWS_INTEL_AUTO_FETCH_ENABLED: 'true'
+          NEWSNOW_BASE_URL: 'https://newsnow.busiyi.world'
+          NEWS_INTEL_FETCH_TIMEOUT_SEC: '8'
+        run: |
+          # Minis provider automatically appends /v1; LiteLLM requires the complete API root.
+          if [ "${OPENAI_BASE_URL%/}" = 'https://agent.infiscale-tech.com' ]; then
+            export OPENAI_BASE_URL='https://agent.infiscale-tech.com/v1'
+          fi
+          FORCE=''
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ] && [ "${{ inputs.force_run }}" = 'true' ]; then FORCE='--force-run'; fi
+          MODE="${{ inputs.mode || 'full' }}"
+          set +e
+          if [ "$MODE" = "market-only" ]; then
+            python main.py --market-review $FORCE > run-output.log 2>&1
+          elif [ "$MODE" = "stocks-only" ]; then
+            python main.py --no-market-review $FORCE > run-output.log 2>&1
+          else
+            python main.py $FORCE > run-output.log 2>&1
+          fi
+          code=$?
+          set -e
+          python - "$code" <<'PYDIAG'
+          import pathlib, sys
+          s = pathlib.Path('run-output.log').read_text(errors='replace')
+          code = int(sys.argv[1])
+          ai_error = any(x in s for x in ('All LLM models failed', 'invalid_api_key', '分析未成功:'))
+          mail_ok = ('邮件发送成功' in s or '邮件（内联图片）发送成功' in s)
+          mail_error = ('邮件发送失败' in s or '发送邮件失败' in s or '邮件（内联图片）发送失败' in s)
+          report_ok = ('reports' in s or '报告保存' in s)
+          kind = ('鉴权401' if ('401' in s or 'AuthenticationError' in s or 'invalid_api_key' in s) else '模型/接口404' if ('404' in s or 'NotFoundError' in s) else '限流429' if ('429' in s or 'RateLimitError' in s) else '其他') if ai_error else '无'
+          print(f'诊断: 程序退出码={code}; AI错误={ai_error}; AI错误类型={kind}; 邮件发送成功={mail_ok}; 邮件错误={mail_error}; 报告线索={report_ok}')
+          if code or ai_error or mail_error or not mail_ok:
+              sys.exit('诊断未通过：请检查模型配置、通知配置或报告是否生成；不输出原始日志以保护密钥。')
+          PYDIAG
+          rm -f run-output.log
