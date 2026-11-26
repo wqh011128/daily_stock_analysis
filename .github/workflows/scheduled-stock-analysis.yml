@@ -1,15 +1,15 @@
 name: 科技股票定时分析
 
 on:
-  schedule:
-    - cron: '30 3 * * 1-5' # 北京时间工作日11:30
-    - cron: '0 7 * * 1-5' # 北京时间工作日15:00（收盘，GitHub可能延迟或丢弃整点任务）
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   analyze:
+    # 股票定时分析已停用；如需手动分析，请用原手动工作流。
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
